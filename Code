@@ -1,0 +1,79 @@
+import yfinance as yf
+import datetime
+import matplotlib.pyplot as plt
+import pandas as pd
+
+class Portfolio_Dataset():
+    
+    def __init__(self, companies_tickers:list, companies_name:list):
+        self.companies_tickers = companies_tickers
+        self.companies_name = companies_name
+    
+    def _dowload_data(self):
+        #dowload dataset
+        start_date = datetime.date.today()
+        start_date = start_date.replace(year=start_date.year - 1)
+        start_date = start_date.replace(day=start_date.day - 2)
+        Today = datetime.date.today()
+        end_date = str(Today)
+        data = yf.download(self.companies_tickers, start_date, end_date)
+        data_close = data["Close"]
+        
+        return data_close
+    
+    def _arrange_dataset(self):
+        data_close_features = self._dowload_data()
+        #Replace empty cells by the price j-1
+        data_close_features.fillna(method='ffill', inplace=True)
+        #rename data_close columns
+        new_columns_name = []
+        columns_name = data_close_features.columns
+        for column in columns_name:
+            if column == self.companies_tickers[0]:
+                new_columns_name.append(self.companies_name[0])
+            elif column == self.companies_tickers[1]:
+                new_columns_name.append(self.companies_name[1])
+            elif column == self.companies_tickers[2]:
+                new_columns_name.append(self.companies_name[2])
+            elif column == self.companies_tickers[3]:
+                new_columns_name.append(self.companies_name[3])
+            elif column == self.companies_tickers[4]:
+                new_columns_name.append(self.companies_name[4])
+        data_close_features.columns = new_columns_name
+        #export to excel to view
+        data_close_features.to_excel("Data_Markowitz.xlsx", sheet_name="DATA")
+        
+        return data_close_features
+    
+    def save_dataset_to_cache(self):
+        key = "Portfolio_Dataset"
+        data_close_features = self._arrange_dataset()
+        if len(self.cache) > 0:
+            self.cache.delete(key)
+            self.cache.set(key, data_close_features)
+        else:
+            self.cache.set(key, data_close_features)
+    
+    def show_data(self):
+        self.save_dataset_to_cache()
+        data_close_features = pd.DataFrame(self.cache.get("Portfolio_Dataset"))
+        fig = plt.figure(figsize=(10, 6))
+        ax = fig.add_subplot("111")
+        colors_list = ["red", "blue", "green", "yellow", "pink"]
+        i=0
+        for column in data_close_features.columns:
+            ax.plot(data_close_features.index, data_close_features[column], color=colors_list[i], label=column)
+            i+=1
+            
+        ax.set_title("Historical price evolution of the selected portfolio")
+        ax.set_xlabel("Date")
+        ax.set_ylabel("Price")
+        ax.legend()
+        plt.savefig("Portfolio_Dataset.png", dpi=144)
+
+if __name__ == "__main__":
+    print("Markowitz_Model processing")
+    companies_tickers = ["KER.PA", "AAPL", "LIN", "CL=F", "GC=F"]
+    companies_name = ["KERING", "APPLE", "LINDE", "OIL", "GOLD"]
+    Portfolio = Portfolio_Dataset(companies_tickers, companies_name)
+    Portfolio.show_data()
